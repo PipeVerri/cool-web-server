@@ -3,54 +3,101 @@
 #####################################
 
 import socket  # for sending and receiving data
-import re  # for parsing strings
+import os.path  # for checking if files exists
 
 #####################################
 #           Configuration           #
 #####################################
 
-websiteDirectory = "./run_directory/"  # where will the website run
+# Soon, the configuration will be read from a file
+
+websiteDirectory = "./test_files/"  # where will the website run
 defaultFile = "index.html"  # what file send by default to the site
-port = 8081
-max_request_length = 1024
-max_concurrent_connections = 10
+port = 8080  # the webserver port
+max_request_length = 1024  # max http request length
+max_concurrent_connections = 10  # max concurrent connections
+error_404_page = "404.html"  # path to the 404-error page
+defaultHeaders = ""
 
 #####################################
 #            Functions              #
 #####################################
 
 
-# we will use this function in the future for rendering other formats, like php
-def read_document(path):
-    try:  # we try reading the data, if we can't, we return None
-        data = open(websiteDirectory + path, "r").read()
-    except FileNotFoundError:
-        return None
-    return data
+def read_file(file_path):
+    """
+    :param file_path: the complete path that the file will be read from
+    :return: the file contents or the 404 page, the status of the file search 1 means 404 error
+
+    This function dedicates to read a requested file from the webserver.
+    If the file doesn't exist, these are the different cases:
+
+    1) Return the 404-error page specified in the configuration.
+    2) Create a custom 404-error page if the one specified doesn't exist.
+
+    Then, if the file exists, it returns a status code of 0 and the file. If the file doesn't exist,
+    it returns the 404 page and a status code of 1.
+    """
+    if os.path.isfile(websiteDirectory + file_path):  # check if the requested file exists
+        status = 0
+        file_data = open(websiteDirectory + file_path, "r").read()  # read the requested file
+    else:
+        status = 1  # if the status is 1, it means the file wasn't found, a 404 error
+        if os.path.isfile(websiteDirectory + error_404_page):  # check if the 404 page exists
+            file_data = open(websiteDirectory + error_404_page, "r").read()
+        else:
+            file_data = "Please configure the 404-error page"  # custom 404-error page
+    return file_data, status  # return them
 
 
-# we will use this function for basic request data
 def get_file_data(data):
-    file_f = data.split("\n")[0].split(" ")[1]  # we get the first line, and then we get the second element
-    if file_f == "/":  # if the file is only /, the client is asking for the default document
-        file_f = defaultFile
-    else:  # if the path is correct, we remove the starting /
-        file_f = file_f[1:]
-    # we get the version and method using the same method as before
-    method_f = data.split("\n")[0].split(" ")[0]
-    version_f = data.split("\n")[0].split(" ")[2]
-    return method_f, file_f, version_f  # return it
+    """
+    :param data: the request that information will be got from
+    :return: the http method, the file requested, the http version
+    This function dedicates to process and extract basic information from a http request.
+    Let's imagine this is the request we received:
+        GET /index.html HTTP/1.1\n
+        TAG: VALUE
+        ...
+    For later creating the response for it, we need three things:
+        1) The operation (in this case: GET)
+        2) The requested file (in this case: index.html)
+        3) The http version, for answering with the same one (in this case: HTTP/1.1)
+    The first thing we do, is grab only the first line, that's the place where the necessary info is.
+    Then, we split that line by spaces, the first one is the operation, second one the file, third one the version.
+
+    Finally, after we get the file, we check if its /, it means the client wants the default document, which we get from
+    the settings.
+    """
+    first_line = data.split("\n")[0]  # get the first line
+    # get the method, file, and version
+    method_f = first_line.split(" ")[0]
+    file_f = first_line.split(" ")[1]
+    version_f = first_line.split(" ")[2]
+    if file_f == "/":
+        file_f = defaultFile  # use the default document when asked for it
+    else:
+        file_f = file_f[1:]  # crop the starting /, its more comfortable to work with it like that
+    return method_f, file_f, version_f
 
 
 # we will use this function to craft a response for a get request
-def get_response_crafter(file_name, http_version, headers="", status_code="200"):
-    content_f = http_version.strip("\r") + " " + status_code + "\n" + headers + "\n"  # create a base response
-    file_data = read_document(file_name)  # get the html code
-    if file_data is None:  # if the function couldn't find the file, return 404 response
-        content_f = http_version.strip("\r") + " " + "404"
-    else:
-        content_f += file_data  # else, add it to the base response
-    return content_f
+def get_response_crafter(file_path, http_version, headers=""):
+    """
+    :param file_path: the file to be read
+    :param http_version: the http version that the client is using
+    :param headers: the headers that will be added, defaults to an empty string
+    :return: a complete response ready to be sent back to the client
+    
+    This function dedicates to create a response with code 200 for a get request, it gets the file using read_file()
+    and if the file doesn't exist (the function returns a status of 1) it creates the same response but with a 404 code
+    """
+    file_data, status = read_file(file_path)  # get the file and status
+    if status == 0:  # status 0 means a 200 status code
+        content_f = http_version.strip("\r") + " " + "200" + "\n" + headers + "\n" + file_data
+    else:  # other status means a 404 status code
+        content_f = http_version.strip("\r") + " " + "404" + "\n" + headers + "\n" + file_data
+    return content_f  # return it
 
 
 ######################################
