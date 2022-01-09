@@ -4,6 +4,8 @@
 
 import socket  # for sending and receiving data
 import os.path  # for checking if files exists
+import re  # for getting the file extension
+import renderers  # a custom python file with functions for rendering files
 
 #####################################
 #           Configuration           #
@@ -18,10 +20,29 @@ max_request_length = 1024  # max http request length
 max_concurrent_connections = 10  # max concurrent connections
 error_404_page = "404.html"  # path to the 404-error page
 defaultHeaders = ""
+default_success_code = 200
 
 #####################################
 #            Functions              #
 #####################################
+
+
+def render_document(path_to_file):
+    """
+    :param path_to_file: the complete path to the file to be rendered
+    :return: if the file can be rendered, it will be.
+
+    This function dedicates to render the available formats. For example, if you pass it a php file, it will return
+    the rendered version of it, instead of saying <php echo('hello') ?>, it will say hello.
+
+    The functions written for rendering the formats are in the renderers.py script, more can be added by writing them
+    into it and then adding it to the if-elif chain
+    """
+    extension = re.findall(r".+\.(\w+)", path_to_file)[0]  # get the extension using regex
+    if extension == "php":
+        return renderers.php(path_to_file)
+    else:
+        return renderers.default(path_to_file)
 
 
 def read_file(file_path):
@@ -40,11 +61,11 @@ def read_file(file_path):
     """
     if os.path.isfile(websiteDirectory + file_path):  # check if the requested file exists
         status = 0
-        file_data = open(websiteDirectory + file_path, "r").read()  # read the requested file
+        file_data = render_document(websiteDirectory + file_path)  # read the requested file
     else:
         status = 1  # if the status is 1, it means the file wasn't found, a 404 error
         if os.path.isfile(websiteDirectory + error_404_page):  # check if the 404 page exists
-            file_data = open(websiteDirectory + error_404_page, "r").read()
+            file_data = render_document(websiteDirectory + error_404_page)
         else:
             file_data = "Please configure the 404-error page"  # custom 404-error page
     return file_data, status  # return them
@@ -82,19 +103,20 @@ def get_file_data(data):
 
 
 # we will use this function to craft a response for a get request
-def get_response_crafter(file_path, http_version, headers=""):
+def get_response_crafter(file_path, http_version, headers="", status_code=str(default_success_code)):
     """
+    :param status_code: the successful status code to be returned
     :param file_path: the file to be read
     :param http_version: the http version that the client is using
     :param headers: the headers that will be added, defaults to an empty string
     :return: a complete response ready to be sent back to the client
-    
+
     This function dedicates to create a response with code 200 for a get request, it gets the file using read_file()
     and if the file doesn't exist (the function returns a status of 1) it creates the same response but with a 404 code
     """
     file_data, status = read_file(file_path)  # get the file and status
     if status == 0:  # status 0 means a 200 status code
-        content_f = http_version.strip("\r") + " " + "200" + "\n" + headers + "\n" + file_data
+        content_f = http_version.strip("\r") + " " + status_code + "\n" + headers + "\n" + file_data
     else:  # other status means a 404 status code
         content_f = http_version.strip("\r") + " " + "404" + "\n" + headers + "\n" + file_data
     return content_f  # return it
@@ -105,6 +127,8 @@ def get_response_crafter(file_path, http_version, headers=""):
 ######################################
 
 serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # create a normal tcp socket
+# for a reason, the socket crashes saying that the address is already in use, even though it's not true. This solves it
+serverSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 serverSocket.bind(("0.0.0.0", port))  # we bind it to our real ip to make it visible to the real world
 serverSocket.listen(max_concurrent_connections)  # we start listening and accept 10 concurrent connections
 
