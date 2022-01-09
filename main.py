@@ -13,14 +13,16 @@ import renderers  # a custom python file with functions for rendering files
 
 # Soon, the configuration will be read from a file
 
+config = {}
+
 websiteDirectory = "./test_files/"  # where will the website run
 defaultFile = "index.html"  # what file send by default to the site
 port = 8080  # the webserver port
 max_request_length = 1024  # max http request length
 max_concurrent_connections = 10  # max concurrent connections
 error_404_page = "404.html"  # path to the 404-error page
-defaultHeaders = ""
-default_success_code = 200
+defaultHeaders = ""  # default get request headers
+default_success_code = 200  # default success status code
 
 #####################################
 #            Functions              #
@@ -59,13 +61,13 @@ def read_file(file_path):
     Then, if the file exists, it returns a status code of 0 and the file. If the file doesn't exist,
     it returns the 404 page and a status code of 1.
     """
-    if os.path.isfile(websiteDirectory + file_path):  # check if the requested file exists
+    if os.path.isfile(config["websiteDirectory"] + file_path):  # check if the requested file exists
         status = 0
-        file_data = render_document(websiteDirectory + file_path)  # read the requested file
+        file_data = render_document(config["websiteDirectory"] + file_path)  # read the requested file
     else:
         status = 1  # if the status is 1, it means the file wasn't found, a 404 error
-        if os.path.isfile(websiteDirectory + error_404_page):  # check if the 404 page exists
-            file_data = render_document(websiteDirectory + error_404_page)
+        if os.path.isfile(config["websiteDirectory"] + config["error_404_page"]):  # check if the 404 page exists
+            file_data = render_document(config["websiteDirectory"] + config["error_404_page"])
         else:
             file_data = "Please configure the 404-error page"  # custom 404-error page
     return file_data, status  # return them
@@ -96,14 +98,15 @@ def get_file_data(data):
     file_f = first_line.split(" ")[1]
     version_f = first_line.split(" ")[2]
     if file_f == "/":
-        file_f = defaultFile  # use the default document when asked for it
+        file_f = config["default_file"]  # use the default document when asked for it
     else:
         file_f = file_f[1:]  # crop the starting /, its more comfortable to work with it like that
     return method_f, file_f, version_f
 
 
 # we will use this function to craft a response for a get request
-def get_response_crafter(file_path, http_version, headers="", status_code=str(default_success_code)):
+def get_response_crafter(file_path, http_version, headers=config["defaultHeaders"],
+                         status_code=config["default_success_code"]):
     """
     :param status_code: the successful status code to be returned
     :param file_path: the file to be read
@@ -129,12 +132,12 @@ def get_response_crafter(file_path, http_version, headers="", status_code=str(de
 serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # create a normal tcp socket
 # for a reason, the socket crashes saying that the address is already in use, even though it's not true. This solves it
 serverSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-serverSocket.bind(("0.0.0.0", port))  # we bind it to our real ip to make it visible to the real world
-serverSocket.listen(max_concurrent_connections)  # we start listening and accept 10 concurrent connections
+serverSocket.bind(("0.0.0.0", int(config["port"])))  # we bind it to our real ip to make it visible to the real world
+serverSocket.listen(config["max_concurrent_connections"])  # we start listening and accept 10 concurrent connections
 
 while True:
     clientSocket, clientAddress = serverSocket.accept()  # accept client's connections
-    request = clientSocket.recv(max_request_length)  # receive the client request
+    request = clientSocket.recv(int(config["max_request_length"]))  # receive the client request
     method, fileName, version = get_file_data(request.decode())  # get the request details
     content = get_response_crafter(fileName, version)  # craft the response
     # send it and close the connection
