@@ -41,21 +41,22 @@ for x in config_file.read().splitlines():
 
 def render_document(path_to_file):
     extension = re.findall(r".+\.(\w+)", path_to_file)[0]
-    if extension == "php":
-        return parsers.render_php(path_to_file)
+    if extension in parsers.extensionCommand.keys():
+        return parsers.execute_file(parsers.extensionCommand[extension], path_to_file)
     else:
-        return parsers.render_default(path_to_file)
+        return parsers.default(path_to_file)
 
 
-def read_file(file_path):
+def parse_file_path(file_path):
     if os.path.isfile(config["websiteDirectory"] + file_path):
         status = 0
-        file_data = render_document(config["websiteDirectory"] + file_path)
+        file_data = config["websiteDirectory"] + file_path
     else:
-        status = 1
         if os.path.isfile(config["websiteDirectory"] + config["error_404_page"]):
-            file_data = render_document(config["websiteDirectory"] + config["error_404_page"])
+            status = 1
+            file_data = config["websiteDirectory"] + config["error_404_page"]
         else:
+            status = 2
             file_data = "Please configure the 404-error page"
     return file_data, status
 
@@ -74,12 +75,23 @@ def get_file_data(data):
 
 def get_response_crafter(file_path, http_version, headers=config["defaultHeaders"],
                          status_code=config["default_success_code"]):
-    file_data, status = read_file(file_path)
+    path_parsed, status = parse_file_path(file_path)
     if status == 0:
-        content_f = http_version.strip("\r") + " " + status_code + "\n" + headers + "\n" + file_data
+        content_f = http_version.strip("\r") + " " + status_code + "\n" + headers + "\n" + render_document(path_parsed)
+    elif status == 2:
+        content_f = http_version.strip("\r") + " " + "404" + "\n" + headers + "\n" + render_document(path_parsed)
     else:
-        content_f = http_version.strip("\r") + " " + "404" + "\n" + headers + "\n" + file_data
+        content_f = http_version.strip("\r") + " " + "404" + "\n" + headers + "\n" + path_parsed
     return content_f
+
+
+def post_response_crafter(file_path, http_version, request_data):
+    path_parsed, status = parse_file_path(file_path)
+    extension = re.findall(r".+\.(\w+)", path_parsed)[0]
+    if extension in parsers.extensionCommand.keys():
+        return parsers.execute_file(parsers.extensionCommand[extension], path_parsed, request_data)
+    else:
+        return get_response_crafter(file_path, http_version)
 
 
 ######################################
