@@ -5,7 +5,7 @@
 import socket  # for sending and receiving data
 import os.path  # for checking if files exists
 import re  # for getting the file extension
-import renderers  # a custom python file with functions for rendering files
+import parsers  # a custom python file with functions for rendering files
 
 #####################################
 #           Configuration           #
@@ -47,14 +47,14 @@ def render_document(path_to_file):
     This function dedicates to render the available formats. For example, if you pass it a php file, it will return
     the rendered version of it, instead of saying <php echo('hello') ?>, it will say hello.
 
-    The functions written for rendering the formats are in the renderers.py script, more can be added by writing them
+    The functions written for rendering the formats are in the parsers.py script, more can be added by writing them
     into it and then adding it to the if-elif chain
     """
     extension = re.findall(r".+\.(\w+)", path_to_file)[0]  # get the extension using regex
     if extension == "php":
-        return renderers.php(path_to_file)
+        return parsers.render_php(path_to_file)
     else:
-        return renderers.default(path_to_file)
+        return parsers.render_default(path_to_file)
 
 
 def read_file(file_path):
@@ -143,7 +143,7 @@ serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # create a nor
 # for a reason, the socket crashes saying that the address is already in use, even though it's not true. This solves it
 serverSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 serverSocket.bind(("0.0.0.0", int(config["port"])))  # we bind it to our real ip to make it visible to the real world
-serverSocket.listen(int(config["max_concurrent_connections"]))  # we start listening and accept 10 concurrent connections
+serverSocket.listen(int(config["max_concurrent_connections"]))  # we start listening with max 10 concurrent connections
 
 while True:
     clientSocket, clientAddress = serverSocket.accept()  # accept client's connections
