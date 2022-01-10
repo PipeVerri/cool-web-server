@@ -89,7 +89,8 @@ def post_response_crafter(file_path, http_version, request_data):
     path_parsed, status = parse_file_path(file_path)
     extension = re.findall(r".+\.(\w+)", path_parsed)[0]
     if extension in parsers.extensionCommand.keys():
-        return parsers.execute_file(parsers.extensionCommand[extension], path_parsed, request_data)
+        return http_version.strip("\r") + " " + "200" + "\n" +\
+               parsers.execute_file(parsers.extensionCommand[extension], path_parsed, request_data.decode())
     else:
         return get_response_crafter(file_path, http_version)
 
@@ -108,8 +109,11 @@ while True:
     clientSocket, clientAddress = serverSocket.accept()  # accept client's connections
     request = clientSocket.recv(int(config["max_request_length"]))  # receive the client request
     method, fileName, version = get_file_data(request.decode())  # get the request details
-    content = get_response_crafter(fileName, version)  # craft the response
+    if method == "POST":
+        content = post_response_crafter(fileName, version, request)
+        print(content)
+    else:
+        content = get_response_crafter(fileName, version, "sas")
     # send it and close the connection
-    print(content)
     clientSocket.send(content.encode())
     clientSocket.close()
