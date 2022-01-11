@@ -13,7 +13,8 @@ class configuration:
         else:
             return line
 
-    data = {}
+    server = {}
+    executors = {}
     configFile = open("server_configuration", "r")
 
     for x in configFile.read().splitlines():
@@ -21,10 +22,12 @@ class configuration:
         if line_without_comments is None:
             continue
         else:
-            key_and_item = line_without_comments.split(" ", maxsplit=1)
-            if key_and_item[0] == "default_headers":
-                key_and_item[1] = key_and_item[1].replace(";", "\n")
-            data[key_and_item[0]] = key_and_item[1]
+            line_without_comments = line_without_comments.replace("\r", "\n")
+            key_and_value = line_without_comments.split(":")
+            if line_without_comments[0] == ";":
+                executors[key_and_value[0].strip(";")] = key_and_value[1]
+            else:
+                server[key_and_value[0]] = key_and_value[1]
 
 
 class request_parsers:
@@ -36,7 +39,7 @@ class request_parsers:
         http_file = first_line.split(" ")[1]
         http_version = first_line.split(" ")[2]
         if http_file == "/":
-            http_file = configuration.data["default_file"]
+            http_file = configuration.server["default_file"]
         else:
             http_file = http_file[1:]
         return http_method, http_file, http_version
@@ -45,14 +48,14 @@ class request_parsers:
 class file_parsers:
     @staticmethod
     def return_file_contents(file_path):
-        if os.path.isfile(configuration.data["website_directory"] + file_path):
+        if os.path.isfile(configuration.server["website_directory"] + file_path):
             file_exists = True
-            file_contents = file_renderers.choose_renderer(configuration.data["website_directory"] + file_path)
+            file_contents = file_renderers.choose_renderer(configuration.server["website_directory"] + file_path)
         else:
             file_exists = False
-            if os.path.isfile(configuration.data["website_directory"] + configuration.data["error_404_page"]):
+            if os.path.isfile(configuration.server["website_directory"] + configuration.server["error_404_page"]):
                 file_contents = file_renderers.choose_renderer(
-                                configuration.data["website_directory"] + configuration.data["error_404_page"])
+                    configuration.server["website_directory"] + configuration.server["error_404_page"])
             else:
                 file_contents = "Please configure the 404 page"
         return file_contents, file_exists
@@ -60,13 +63,14 @@ class file_parsers:
 
 class response_crafters:
     @staticmethod
-    def get_response_crafter(http_version, http_file, headers=configuration.data["default_headers"],
-                             success_status_code=configuration.data["success_status_code"]):
+    def get_response_crafter(http_version, http_file, headers=configuration.server["default_headers"]):
         file_contents, file_exists = file_parsers.return_file_contents(http_file)
         if file_exists:
-            return http_version + " " + success_status_code + "\n" + headers + "\n" + file_contents
+            return http_version + " " + configuration.server["success_status_code"] + \
+                   "\n" + headers + "\n" + file_contents
         else:
-            return http_version + " " + "404" + "\n" + headers + "\n" + file_contents
+            return http_version + " " + configuration.server["file_not_found_status_code"] + \
+                   "\n" + headers + "\n" + file_contents
 
 
 class file_renderers:

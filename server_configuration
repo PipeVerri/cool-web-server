@@ -1,10 +1,16 @@
 # Server configuration
 
-website_directory ./test_files/
-default_file index.html
-port 8080
-max_request_length 1024
-max_concurrent_connections 10
-error_404_page 404.html
-default_headers: Set-Cookie: data=cookie;
-default_success_code 200
+website_directory:./test_files/
+default_file:index.html
+port:8080
+max_request_length:1024
+max_concurrent_connections:10
+error_404_page:404.html
+default_headers::Set-Cookie: data=cookie\r # separate the headers by \r
+default_success_code:200
+file_not_found_status_code:404
+
+# Associate the file extension with the command to run/render it, format: ;<file_extension>:<command> without the <>
+
+;py:python
+;php:php
