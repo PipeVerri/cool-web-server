@@ -1,4 +1,5 @@
 import os
+import re
 
 
 class configuration:
@@ -47,43 +48,57 @@ class request_parsers:
 
 class file_parsers:
     @staticmethod
-    def return_file_contents(file_path):
+    def parse_file_path(file_path):
         if os.path.isfile(configuration.server["website_directory"] + file_path):
             file_exists = True
-            file_contents = file_renderers.choose_renderer(configuration.server["website_directory"] + file_path)
+            updated_path = configuration.server["website_directory"] + file_path
         else:
             file_exists = False
             if os.path.isfile(configuration.server["website_directory"] + configuration.server["error_404_page"]):
-                file_contents = file_renderers.choose_renderer(
-                    configuration.server["website_directory"] + configuration.server["error_404_page"])
+                updated_path = configuration.server["website_directory"] + configuration.server["error_404_page"]
             else:
-                file_contents = "Please configure the 404 page"
-        return file_contents, file_exists
+                raise Exception("Please configure the 404 page")
+        return updated_path, file_exists
 
 
 class response_crafters:
     @staticmethod
     def get_response_crafter(http_version, http_file, headers=configuration.server["default_headers"]):
-        file_contents, file_exists = file_parsers.return_file_contents(http_file)
+        path_updated, file_exists = file_parsers.parse_file_path(http_file)
         if file_exists:
-            return http_version + " " + configuration.server["success_status_code"] + \
-                   "\n" + headers + "\n" + file_contents
+            return http_version.strip("\r") + " " + configuration.server["success_status_code"] + \
+                   "\n" + headers + "\n" + file_renderers.choose_renderer(path_updated)
         else:
             return http_version + " " + configuration.server["file_not_found_status_code"] + \
-                   "\n" + headers + "\n" + file_contents
+                   "\n" + headers + "\n" + file_renderers.choose_renderer(path_updated)
+
+    @staticmethod
+    def post_response_crafter(http_version, http_file, headers=configuration.server["default_headers"], args="test"):
+        updated_path, file_exists = file_parsers.parse_file_path(http_file)
+        rendered_file = file_renderers.choose_renderer(updated_path, args)
+        if file_exists:
+            return http_version.strip("\r") + " " + configuration.server["success_status_code"] + "\n" + \
+                   headers + "\n" + rendered_file
+        else:
+            return http_version + " " + configuration.server["file_not_found_status_code"] + "\n" + \
+                   headers + "\n" + rendered_file
 
 
 class file_renderers:
     @staticmethod
     def default(path_to_file):
-        return open(path_to_file, "r").read()[1]
+        return open(path_to_file, "r").read()
 
     @staticmethod
-    def execute_file(command, path_to_file, args=""):
+    def execute_file(command, path_to_file, args):
         args_encapsulated = '"' + args + '"'
         args_encapsulated.replace("\r", " ")
         return os.popen(f"{command} {path_to_file} {args_encapsulated}").read()
 
     @staticmethod
-    def choose_renderer(file_to_render):
-        return file_renderers.default(file_to_render)
+    def choose_renderer(file_to_render, args=""):
+        extension = re.findall(r".+\.(\w+)", file_to_render)[0]
+        if extension in configuration.executors.keys():
+            return file_renderers.execute_file(configuration.executors[extension], file_to_render, args)
+        else:
+            return file_renderers.default(file_to_render)

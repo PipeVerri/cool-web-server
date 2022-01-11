@@ -18,13 +18,10 @@ while True:
     clientSocket, clientAddress = serverSocket.accept()
     request = clientSocket.recv(int(tools.configuration.server["max_request_length"]))
     method, filename, version = tools.request_parsers.parse_basic_request_information(request.decode())
-
+    version.strip("\r")
     if method == "POST":
-        content = post_response_crafter(filename, version, request)
-    elif method == "HEAD":
-        content = head_response_crafter(filename, version)
+        content = tools.response_crafters.post_response_crafter(version, filename, request.decode())
     else:
-        content = tools.response_crafters.get_response_crafter(filename, version)
-
+        content = tools.response_crafters.get_response_crafter(version, filename)
     clientSocket.send(content.encode())
     clientSocket.close()
