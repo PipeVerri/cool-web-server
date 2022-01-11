@@ -73,12 +73,16 @@ class response_crafters:
                    "\n" + headers + "\n" + file_renderers.choose_renderer(path_updated)
 
     @staticmethod
-    def post_response_crafter(http_version, http_file, headers=configuration.server["default_headers"], args="test"):
+    def post_response_crafter(http_version, http_file, headers=configuration.server["default_headers"], args="test",
+                              use_template=configuration.server["post_response_template"]):
         updated_path, file_exists = file_parsers.parse_file_path(http_file)
         rendered_file = file_renderers.choose_renderer(updated_path, args)
         if file_exists:
-            return http_version.strip("\r") + " " + configuration.server["success_status_code"] + "\n" + \
-                   headers + "\n" + rendered_file
+            if use_template == "true":
+                return http_version.strip("\r") + " " + configuration.server["success_status_code"] + \
+                       "\n" + headers + "\n" + rendered_file
+            else:
+                return rendered_file
         else:
             return http_version + " " + configuration.server["file_not_found_status_code"] + "\n" + \
                    headers + "\n" + rendered_file
