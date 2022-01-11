@@ -2,7 +2,7 @@
 #              Imports              #
 #####################################
 
-import socket  # for sending and receiving data
+import socket
 import tools
 
 ######################################
@@ -17,10 +17,10 @@ serverSocket.listen(int(tools.configuration.server["max_concurrent_connections"]
 while True:
     clientSocket, clientAddress = serverSocket.accept()
     request = clientSocket.recv(int(tools.configuration.server["max_request_length"]))
-    method, filename, version = tools.request_parsers.parse_basic_request_information(request.decode())
-    version.strip("\r")
+    decoded_request = request.decode().replace("\r", " ")
+    method, filename, version = tools.request_parsers.parse_basic_request_information(decoded_request)
     if method == "POST":
-        content = tools.response_crafters.post_response_crafter(version, filename, args=request.decode())
+        content = tools.response_crafters.post_response_crafter(version, filename, args=decoded_request)
     else:
         content = tools.response_crafters.get_response_crafter(version, filename)
     clientSocket.send(content.encode())

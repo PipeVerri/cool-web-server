@@ -66,11 +66,11 @@ class response_crafters:
     def get_response_crafter(http_version, http_file, headers=configuration.server["default_headers"]):
         path_updated, file_exists = file_parsers.parse_file_path(http_file)
         if file_exists:
-            return http_version.strip("\r") + " " + configuration.server["success_status_code"] + \
-                   "\n" + headers + "\n" + file_renderers.choose_renderer(path_updated)
+            return http_version + " " + configuration.server["success_status_code"] + \
+                   "\r\n" + headers + "\r\n" + file_renderers.choose_renderer(path_updated)
         else:
             return http_version + " " + configuration.server["file_not_found_status_code"] + \
-                   "\n" + headers + "\n" + file_renderers.choose_renderer(path_updated)
+                   "\r\n" + headers + "\r\n" + file_renderers.choose_renderer(path_updated)
 
     @staticmethod
     def post_response_crafter(http_version, http_file, headers=configuration.server["default_headers"], args="test",
@@ -79,13 +79,13 @@ class response_crafters:
         rendered_file = file_renderers.choose_renderer(updated_path, args)
         if file_exists:
             if use_template == "true":
-                return http_version.strip("\r") + " " + configuration.server["success_status_code"] + \
-                       "\n" + headers + "\n" + rendered_file
+                return http_version + " " + configuration.server["success_status_code"] + \
+                       "\r\n" + headers + "\r\n" + rendered_file
             else:
                 return rendered_file
         else:
-            return http_version + " " + configuration.server["file_not_found_status_code"] + "\n" + \
-                   headers + "\n" + rendered_file
+            return http_version + " " + configuration.server["file_not_found_status_code"] + "\r\n" + \
+                   headers + "\r\n" + rendered_file
 
 
 class file_renderers:
