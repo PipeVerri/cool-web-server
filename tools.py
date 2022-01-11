@@ -1,5 +1,8 @@
 import os
 import re
+from datetime import datetime
+import sys
+import magic
 
 
 class configuration:
@@ -23,8 +26,8 @@ class configuration:
         if line_without_comments is None:
             continue
         else:
-            line_without_comments = line_without_comments.replace("\r", "\n")
-            key_and_value = line_without_comments.split(":")
+            line_without_comments = line_without_comments.replace(";", "\r\n")
+            key_and_value = line_without_comments.split(":", maxsplit=1)
             if line_without_comments[0] == ";":
                 executors[key_and_value[0].strip(";")] = key_and_value[1]
             else:
@@ -35,15 +38,21 @@ class request_parsers:
 
     @staticmethod
     def parse_basic_request_information(data):
-        first_line = data.split("\n")[0]
-        http_method = first_line.split(" ")[0]
-        http_file = first_line.split(" ")[1]
-        http_version = first_line.split(" ")[2]
-        if http_file == "/":
-            http_file = configuration.server["default_file"]
-        else:
-            http_file = http_file[1:]
-        return http_method, http_file, http_version
+        try:
+            first_line = data.split("\n")[0]
+            http_method = first_line.split(" ")[0]
+            http_file = first_line.split(" ")[1]
+            http_version = first_line.split(" ")[2]
+            if http_file == "/":
+                http_file = configuration.server["default_file"]
+            else:
+                http_file = http_file[1:]
+            return http_method, http_file, http_version
+        except IndexError:
+            http_method = "GET"
+            http_file = "/"
+            http_version = "HTTP/1.1"
+            return http_method, http_file, http_version
 
 
 class file_parsers:
@@ -63,6 +72,15 @@ class file_parsers:
 
 class response_crafters:
     @staticmethod
+    def base_response_crafter(http_version, http_file, status_code, content, filename):
+        response = http_version + " " + status_code + "\r\n"
+        response += "Date:" + datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT") + "\r\n"
+        response += "Server: " + configuration.server["server_name"] + "\r\n"
+        response += "Content-Length: " + str(sys.getsizeof(content)) + "\r\n"
+        response += "Content-Type: " + magic.from_file(filename, mime=True) + "\r\n"
+        return response
+
+    @staticmethod
     def get_response_crafter(http_version, http_file, headers=configuration.server["default_headers"]):
         path_updated, file_exists = file_parsers.parse_file_path(http_file)
         if file_exists:
@@ -79,8 +97,7 @@ class response_crafters:
         rendered_file = file_renderers.choose_renderer(updated_path, args)
         if file_exists:
             if use_template == "true":
-                return http_version + " " + configuration.server["success_status_code"] + \
-                       "\r\n" + headers + "\r\n" + rendered_file
+                return http_version + " " + configuration.server["success_status_code"] + headers + rendered_file
             else:
                 return rendered_file
         else:
@@ -103,6 +120,6 @@ class file_renderers:
     def choose_renderer(file_to_render, args=""):
         extension = re.findall(r".+\.(\w+)", file_to_render)[0]
         if extension in configuration.executors.keys():
-            return file_renderers.execute_file(configuration.executors[extension], file_to_render, args)
+            return "\r\n" + file_renderers.execute_file(configuration.executors[extension], file_to_render, args)
         else:
-            return file_renderers.default(file_to_render)
+            return "\r\n" + file_renderers.default(file_to_render)
