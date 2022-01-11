@@ -20,7 +20,7 @@ while True:
     method, filename, version = tools.request_parsers.parse_basic_request_information(request.decode())
     version.strip("\r")
     if method == "POST":
-        content = tools.response_crafters.post_response_crafter(version, filename, request.decode())
+        content = tools.response_crafters.post_response_crafter(version, filename, args=request.decode())
     else:
         content = tools.response_crafters.get_response_crafter(version, filename)
     clientSocket.send(content.encode())
