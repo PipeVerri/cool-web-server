@@ -3,121 +3,21 @@
 #####################################
 
 import socket  # for sending and receiving data
-import os.path  # for checking if files exists
-import re  # for getting the file extension
-import renderers  # a custom python file with functions for rendering files
-
-#####################################
-#           Configuration           #
-#####################################
-
-# Soon, the configuration will be read from a file
-
-config = {}
-
-websiteDirectory = "./test_files/"  # where will the website run
-defaultFile = "index.html"  # what file send by default to the site
-port = 8080  # the webserver port
-max_request_length = 1024  # max http request length
-max_concurrent_connections = 10  # max concurrent connections
-error_404_page = "404.html"  # path to the 404-error page
-defaultHeaders = ""  # default get request headers
-default_success_code = 200  # default success status code
-
-#####################################
-#            Functions              #
-#####################################
-
-
-def render_document(path_to_file):
-    """
-    :param path_to_file: the complete path to the file to be rendered
-    :return: if the file can be rendered, it will be.
-
-    This function dedicates to render the available formats. For example, if you pass it a php file, it will return
-    the rendered version of it, instead of saying <php echo('hello') ?>, it will say hello.
-
-    The functions written for rendering the formats are in the renderers.py script, more can be added by writing them
-    into it and then adding it to the if-elif chain
-    """
-    extension = re.findall(r".+\.(\w+)", path_to_file)[0]  # get the extension using regex
-    if extension == "php":
-        return renderers.php(path_to_file)
-    else:
-        return renderers.default(path_to_file)
-
-
-def parse_file_path(file_path):
-    if os.path.isfile(config["websiteDirectory"] + file_path):
-        status = 0
-        file_data = config["websiteDirectory"] + file_path
-    else:
-        if os.path.isfile(config["websiteDirectory"] + config["error_404_page"]):
-            status = 1
-            file_data = config["websiteDirectory"] + config["error_404_page"]
-        else:
-            status = 2
-            file_data = "Please configure the 404-error page"
-    return file_data, status
-
-
-def get_file_data(data):
-    first_line = data.split("\n")[0]
-    method_f = first_line.split(" ")[0]
-    file_f = first_line.split(" ")[1]
-    version_f = first_line.split(" ")[2]
-    if file_f == "/":
-        file_f = config["default_file"]
-    else:
-        file_f = file_f[1:]
-    return method_f, file_f, version_f
-
-
-def get_response_crafter(file_path, http_version, headers=config["defaultHeaders"],
-                         status_code=config["default_success_code"]):
-    path_parsed, status = parse_file_path(file_path)
-    if status == 0:
-        content_f = http_version.strip("\r") + " " + status_code + "\n" + headers + "\n" + render_document(path_parsed)
-    elif status == 2:
-        content_f = http_version.strip("\r") + " " + "404" + "\n" + headers + "\n" + render_document(path_parsed)
-    else:
-        content_f = http_version.strip("\r") + " " + "404" + "\n" + headers + "\n" + path_parsed
-    return content_f
-
-
-def post_response_crafter(file_path, http_version, request_data):
-    path_parsed, status = parse_file_path(file_path)
-    extension = re.findall(r".+\.(\w+)", path_parsed)[0]
-    if extension in parsers.extensionCommand.keys():
-        return parsers.execute_file(parsers.extensionCommand[extension], path_parsed, request_data.decode())
-    else:
-        return get_response_crafter(file_path, http_version)
-
-
-def head_response_crafter(file_path, http_version, headers=config["defaultHeaders"],
-                          status_code=config["default_success_code"]):
-    path_parsed, status = parse_file_path(file_path)
-    if status == 0:
-        content_f = http_version.strip("\r") + " " + status_code + "\n" + headers + "\n"
-    else:
-        content_f = http_version.strip("\r") + " " + "404" + "\n" + headers + "\n"
-    return content_f
-
+import tools
 
 ######################################
 #           Server Socket            #
 ######################################
 
-serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # create a normal tcp socket
-# for a reason, the socket crashes saying that the address is already in use, even though it's not true. This solves it
+serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 serverSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-serverSocket.bind(("0.0.0.0", int(config["port"])))  # we bind it to our real ip to make it visible to the real world
-serverSocket.listen(config["max_concurrent_connections"])  # we start listening and accept 10 concurrent connections
+serverSocket.bind(("0.0.0.0", int()))
+serverSocket.listen(tools.configuration.data["max_concurrent_connections"])
 
 while True:
-    clientSocket, clientAddress = serverSocket.accept()  # accept client's connections
-    request = clientSocket.recv(int(config["max_request_length"]))  # receive the client request
-    method, fileName, version = get_file_data(request.decode())  # get the request details
+    clientSocket, clientAddress = serverSocket.accept()
+    request = clientSocket.recv(int(tools.configuration.data["max_request_length"]))
+    method, fileName, version = get_file_data(request.decode())
 
     if method == "POST":
         content = post_response_crafter(fileName, version, request)
@@ -126,6 +26,5 @@ while True:
     else:
         content = get_response_crafter(fileName, version)
 
-    # send it and close the connection
     clientSocket.send(content.encode())
     clientSocket.close()
