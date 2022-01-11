@@ -11,28 +11,18 @@ import renderers  # a custom python file with functions for rendering files
 #           Configuration           #
 #####################################
 
+# Soon, the configuration will be read from a file
+
 config = {}
-config_file = open("server_configuration", "r")
 
-
-def remove_comments(line):
-    if (line == "") or (line[0] == "#"):
-        return None
-    elif "#" in line:
-        index_to_strip_to = line.find("#") - 1
-        return line[:index_to_strip_to]
-    else:
-        return line
-
-
-for x in config_file.read().splitlines():
-    config_line = remove_comments(x)
-    if config_line is None:
-        continue
-    else:
-        key_and_value = config_line.split(" ", maxsplit=1)
-        config[key_and_value[0].strip(":")] = key_and_value[1].replace(";", "\n")
-
+websiteDirectory = "./test_files/"  # where will the website run
+defaultFile = "index.html"  # what file send by default to the site
+port = 8080  # the webserver port
+max_request_length = 1024  # max http request length
+max_concurrent_connections = 10  # max concurrent connections
+error_404_page = "404.html"  # path to the 404-error page
+defaultHeaders = ""  # default get request headers
+default_success_code = 200  # default success status code
 
 #####################################
 #            Functions              #
@@ -122,7 +112,7 @@ serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # create a nor
 # for a reason, the socket crashes saying that the address is already in use, even though it's not true. This solves it
 serverSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 serverSocket.bind(("0.0.0.0", int(config["port"])))  # we bind it to our real ip to make it visible to the real world
-serverSocket.listen(int(config["max_concurrent_connections"]))  # we start listening and accept 10 concurrent connections
+serverSocket.listen(config["max_concurrent_connections"])  # we start listening and accept 10 concurrent connections
 
 while True:
     clientSocket, clientAddress = serverSocket.accept()  # accept client's connections

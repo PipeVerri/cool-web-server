@@ -1,10 +1,10 @@
 # Server configuration
 
 websiteDirectory: ./test_files/
-default_file: index.html
+defaultFile: index.html
 port: 8080
 max_request_length: 1024
-defaultHeaders: Set-Cookie: name=value;
 max_concurrent_connections: 10
 error_404_page: 404.html
-default_success_code: 200
+defaultHeaders:
+default_success_code = 200
