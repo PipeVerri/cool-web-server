@@ -89,10 +89,19 @@ def post_response_crafter(file_path, http_version, request_data):
     path_parsed, status = parse_file_path(file_path)
     extension = re.findall(r".+\.(\w+)", path_parsed)[0]
     if extension in parsers.extensionCommand.keys():
-        return http_version.strip("\r") + " " + "200" + "\n" +\
-               parsers.execute_file(parsers.extensionCommand[extension], path_parsed, request_data.decode())
+        return parsers.execute_file(parsers.extensionCommand[extension], path_parsed, request_data.decode())
     else:
         return get_response_crafter(file_path, http_version)
+
+
+def head_response_crafter(file_path, http_version, headers=config["defaultHeaders"],
+                          status_code=config["default_success_code"]):
+    path_parsed, status = parse_file_path(file_path)
+    if status == 0:
+        content_f = http_version.strip("\r") + " " + status_code + "\n" + headers + "\n"
+    else:
+        content_f = http_version.strip("\r") + " " + "404" + "\n" + headers + "\n"
+    return content_f
 
 
 ######################################
@@ -109,11 +118,14 @@ while True:
     clientSocket, clientAddress = serverSocket.accept()  # accept client's connections
     request = clientSocket.recv(int(config["max_request_length"]))  # receive the client request
     method, fileName, version = get_file_data(request.decode())  # get the request details
+
     if method == "POST":
         content = post_response_crafter(fileName, version, request)
-        print(content)
+    elif method == "HEAD":
+        content = head_response_crafter(fileName, version)
     else:
-        content = get_response_crafter(fileName, version, "sas")
+        content = get_response_crafter(fileName, version)
+
     # send it and close the connection
     clientSocket.send(content.encode())
     clientSocket.close()
