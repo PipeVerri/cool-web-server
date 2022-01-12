@@ -22,6 +22,8 @@ while True:
     method, filename, version = tools.request_parsers.parse_basic_request_information(decoded_request)
     if method == "POST":
         content = tools.response_crafters.post_response_crafter(version, filename, args=decoded_request)
+    elif method == "HEAD":
+        content = tools.response_crafters.head_response_crafter(version, filename)
     else:
         content = tools.response_crafters.get_response_crafter(version, filename)
     print(content.encode())
