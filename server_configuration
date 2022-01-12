@@ -16,3 +16,7 @@ server_name:Extremely cool webserver
 
 ;py:python
 ;php:php
+
+
+# Set the allowed/denied methods for the file, by default, they only accept GET and OPTIONS
+# Add them like this: *<file>:-<method>+<method> like this: *index.html:-GET+POST+OPTIONS

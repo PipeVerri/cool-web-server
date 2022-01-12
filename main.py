@@ -24,6 +24,8 @@ while True:
         content = tools.response_crafters.post_response_crafter(version, filename, args=decoded_request)
     elif method == "HEAD":
         content = tools.response_crafters.head_response_crafter(version, filename)
+    elif method == "OPTIONS":
+        content = tools.response_crafters.options_response_crafter(version, filename)
     else:
         content = tools.response_crafters.get_response_crafter(version, filename)
     print(content.encode())

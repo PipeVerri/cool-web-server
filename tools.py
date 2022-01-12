@@ -3,6 +3,7 @@ import re
 from datetime import datetime
 import sys
 import magic
+from collections import defaultdict
 
 
 class configuration:
@@ -19,6 +20,7 @@ class configuration:
 
     server = {}
     executors = {}
+    methods = defaultdict(lambda: {"GET": True, "OPTIONS": True, "HEAD": True})
     configFile = open("server_configuration", "r")
 
     for x in configFile.read().splitlines():
@@ -26,10 +28,17 @@ class configuration:
         if line_without_comments is None:
             continue
         else:
-            line_without_comments = line_without_comments.replace(";", "\r\n")
             key_and_value = line_without_comments.split(":", maxsplit=1)
             if line_without_comments[0] == ";":
                 executors[key_and_value[0].strip(";")] = key_and_value[1]
+            elif line_without_comments[0] == "*":
+                methods_search = re.findall(r"([-+])(\w+)", key_and_value[1])
+                dict_to_append = {}
+                for y in methods_search:
+                    method = y[1]
+                    condition = False if y[0] == "-" else True
+                    dict_to_append[method] = condition
+                methods[key_and_value[0].strip("*")] = dict_to_append
             else:
                 server[key_and_value[0]] = key_and_value[1]
 
@@ -100,6 +109,20 @@ class response_crafters:
         base_response = response_crafters.base_response_crafter(http_version, path_updated, status_code,
                                                                 sys.getsizeof(rendered_file))
         base_response += headers + "\r\n"
+        return base_response
+
+    @staticmethod
+    def options_response_crafter(http_version, http_file, headers=configuration.server["default_headers"]):
+        path_updated, file_exists = file_parsers.parse_file_path(http_file)
+        rendered_file = file_renderers.choose_renderer(path_updated)
+        status_code = "200" if file_exists else "404"
+        base_response = response_crafters.base_response_crafter(http_version, path_updated, status_code,
+                                                                sys.getsizeof(rendered_file))
+        allowed_methods = []
+        for x in configuration.methods[http_file].items():
+            if x[1]:
+                allowed_methods.append(x[0])
+        base_response += "Allow: " + ", ".join(allowed_methods) + "\r\n" + headers + "\r\n"
         return base_response
 
     @staticmethod
