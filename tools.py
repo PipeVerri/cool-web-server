@@ -2,8 +2,8 @@ import os
 import re
 from datetime import datetime
 import sys
-import magic
 from collections import defaultdict
+import magic
 
 
 class configuration:
@@ -46,6 +46,21 @@ class configuration:
 class request_parsers:
 
     @staticmethod
+    def validate_request(request):
+        is_request_valid = False
+        try:
+            method, file, version = request_parsers.parse_basic_request_information(request)
+        except IndexError:
+            is_request_valid = False
+            return is_request_valid, response_crafters.base_response_crafter(
+                "HTTP/1.1", file_parsers.parse_file_path("404.html")[0], "400", 0) + "\r\n"
+        if not (version in configuration.server["supported_versions"].split(",")):
+            return is_request_valid, response_crafters.base_response_crafter(
+                version, file_parsers.parse_file_path("404.html")[0], "505", 0) + "\r\n"
+        else:
+            return True, None
+
+    @staticmethod
     def parse_basic_request_information(data):
         try:
             first_line = data.split("\n")[0]
@@ -56,13 +71,9 @@ class request_parsers:
                 http_file = configuration.server["default_file"]
             else:
                 http_file = re.findall(r"(http://\d+\.\d+\.\d+\.\d+:\d+)?/(.+)", http_file)[0][1]
-                print(http_file)
             return http_method, http_file, http_version
         except IndexError:
-            http_method = "GET"
-            http_file = "/"
-            http_version = "HTTP/1.1"
-            return http_method, http_file, http_version
+            raise IndexError
 
 
 class file_parsers:
