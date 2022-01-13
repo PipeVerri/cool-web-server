@@ -21,7 +21,6 @@ while True:
     is_request_valid, error_response = tools.request_parsers.validate_request(decoded_request)
     content = ""
     if is_request_valid:
-        print("valid request")
         method, filename, version = tools.request_parsers.parse_basic_request_information(decoded_request)
     else:
         method, version, filename = None, None, None

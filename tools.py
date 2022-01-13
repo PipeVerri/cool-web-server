@@ -47,16 +47,17 @@ class request_parsers:
 
     @staticmethod
     def validate_request(request):
-        is_request_valid = False
         try:
             method, file, version = request_parsers.parse_basic_request_information(request)
         except IndexError:
-            is_request_valid = False
-            return is_request_valid, response_crafters.base_response_crafter(
+            return False, response_crafters.base_response_crafter(
                 "HTTP/1.1", file_parsers.parse_file_path("404.html")[0], "400", 0) + "\r\n"
         if not (version in configuration.server["supported_versions"].split(",")):
-            return is_request_valid, response_crafters.base_response_crafter(
+            return False, response_crafters.base_response_crafter(
                 version, file_parsers.parse_file_path("404.html")[0], "505", 0) + "\r\n"
+        elif version == "HTTP/1.1" and len(re.findall(r"Host:\s.+", request)) == 0:
+            return False, response_crafters.base_response_crafter(
+                "HTTP/1.1", file_parsers.parse_file_path("404.html")[0], "400", 0) + "\r\n"
         else:
             return True, None
 
@@ -143,11 +144,11 @@ class response_crafters:
         rendered_file = file_renderers.choose_renderer(updated_path, args)
         if file_exists:
             if use_template == "true":
-                return http_version + " " + configuration.server["success_status_code"] + headers + rendered_file
+                return http_version + " " + "200" + headers + rendered_file
             else:
                 return rendered_file
         else:
-            return http_version + " " + configuration.server["file_not_found_status_code"] + "\r\n" + \
+            return http_version + " " + "404" + "\r\n" + \
                    headers + "\r\n" + rendered_file
 
 
