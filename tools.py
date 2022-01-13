@@ -94,13 +94,14 @@ class file_parsers:
 
 class response_crafters:
     @staticmethod
-    def base_response_crafter(http_version, http_file, status_code, content_length):
+    def base_response_crafter(http_version, http_file, status_code, content_length, content_type=None):
         response = http_version + " " + status_code + " " + "OK" + "\r\n"
         response += "Connection: close" + "\r\n"
         response += "Date:" + datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT") + "\r\n"
         response += "Server: " + configuration.server["server_name"] + "\r\n"
         response += "Content-Length: " + str(content_length) + "\r\n"
-        response += "Content-Type: " + magic.from_file(http_file, mime=True) + "\r\n"
+        file_type = content_type if content_type is not None else magic.from_file(http_file, mime=True)
+        response += "Content-Type: " + file_type + "\r\n"
         return response
 
     @staticmethod
@@ -138,18 +139,24 @@ class response_crafters:
         return base_response
 
     @staticmethod
-    def post_response_crafter(http_version, http_file, headers=configuration.server["default_headers"], args="test",
-                              use_template=configuration.server["post_response_template"]):
-        updated_path, file_exists = file_parsers.parse_file_path(http_file)
-        rendered_file = file_renderers.choose_renderer(updated_path, args)
-        if file_exists:
-            if use_template == "true":
-                return http_version + " " + "200" + headers + rendered_file
-            else:
-                return rendered_file
-        else:
-            return http_version + " " + "404" + "\r\n" + \
-                   headers + "\r\n" + rendered_file
+    def post_response_crafter(http_version, http_file, headers=configuration.server["default_headers"], args="test"):
+        path_updated, file_exists = file_parsers.parse_file_path(http_file)
+        rendered_file = file_renderers.choose_renderer(path_updated, args)
+        status_code = "200" if file_exists else "501"
+        base_response = response_crafters.base_response_crafter(http_version, path_updated, status_code,
+                                                                sys.getsizeof(rendered_file))
+        base_response += headers + "\r\n" + rendered_file + "\r\n"
+        return base_response
+
+    @staticmethod
+    def trace_response_crafter(http_version, http_file, request, headers=configuration.server["default_headers"]):
+        path_updated, file_exists = file_parsers.parse_file_path(http_file)
+        rendered_file = file_renderers.choose_renderer(path_updated)
+        status_code = "200"
+        base_response = response_crafters.base_response_crafter(http_version, path_updated, status_code,
+                                                                sys.getsizeof(rendered_file), "message/http")
+        base_response += headers + "\r\n" + request
+        return base_response
 
 
 class file_renderers:

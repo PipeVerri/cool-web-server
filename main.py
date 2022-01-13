@@ -18,6 +18,7 @@ while True:
     clientSocket, clientAddress = serverSocket.accept()
     request = clientSocket.recv(int(tools.configuration.server["max_request_length"]))
     decoded_request = request.decode().replace("\r", " ")
+    print(request)
     is_request_valid, error_response = tools.request_parsers.validate_request(decoded_request)
     content = ""
     if is_request_valid:
@@ -31,8 +32,9 @@ while True:
         content = tools.response_crafters.head_response_crafter(version, filename)
     elif method == "OPTIONS":
         content = tools.response_crafters.options_response_crafter(version, filename)
+    elif method == "TRACE":
+        content = tools.response_crafters.trace_response_crafter(version, filename, decoded_request)
     elif method == "GET":
         content = tools.response_crafters.get_response_crafter(version, filename)
-    print(content.encode())
     clientSocket.send(content.encode())
     clientSocket.close()
