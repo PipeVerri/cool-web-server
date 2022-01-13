@@ -20,12 +20,12 @@ while True:
     decoded_request = request.decode().replace("\r", " ")
     print(request)
     is_request_valid, error_response = tools.request_parsers.validate_request(decoded_request)
-    content = ""
+    content = b""
     if is_request_valid:
         method, filename, version = tools.request_parsers.parse_basic_request_information(decoded_request)
     else:
         method, version, filename = None, None, None
-        content = error_response
+        content = error_response.encode()
     if method == "POST":
         content = tools.response_crafters.post_response_crafter(version, filename, args=decoded_request)
     elif method == "HEAD":
@@ -36,5 +36,5 @@ while True:
         content = tools.response_crafters.trace_response_crafter(version, filename, decoded_request)
     elif method == "GET":
         content = tools.response_crafters.get_response_crafter(version, filename)
-    clientSocket.send(content.encode())
+    clientSocket.send(content)
     clientSocket.close()

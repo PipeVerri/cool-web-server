@@ -1,9 +1,11 @@
 import os
 import re
+import urllib.parse
 from datetime import datetime
 import sys
 from collections import defaultdict
 import magic
+from urllib import parse
 
 
 class configuration:
@@ -63,18 +65,15 @@ class request_parsers:
 
     @staticmethod
     def parse_basic_request_information(data):
-        try:
-            first_line = data.split("\n")[0]
-            http_method = first_line.split(" ")[0]
-            http_file = first_line.split(" ")[1]
-            http_version = first_line.split(" ")[2]
-            if http_file == "/":
-                http_file = configuration.server["default_file"]
-            else:
-                http_file = re.findall(r"(http://\d+\.\d+\.\d+\.\d+:\d+)?/(.+)", http_file)[0][1]
-            return http_method, http_file, http_version
-        except IndexError:
-            raise IndexError
+        first_line = data.split("\n")[0]
+        http_method = first_line.split(" ")[0]
+        http_file = urllib.parse.unquote(first_line.split(" ")[1])
+        http_version = first_line.split(" ")[2]
+        if http_file == "/":
+            http_file = configuration.server["default_file"]
+        else:
+            http_file = re.findall(r"(http://\d+\.\d+\.\d+\.\d+:\d+)?/(.+)", http_file)[0][1]
+        return http_method, http_file, http_version
 
 
 class file_parsers:
@@ -109,9 +108,15 @@ class response_crafters:
         path_updated, file_exists = file_parsers.parse_file_path(http_file)
         rendered_file = file_renderers.choose_renderer(path_updated)
         status_code = "200" if file_exists else "404"
-        base_response = response_crafters.base_response_crafter(http_version, path_updated, status_code,
-                                                                sys.getsizeof(rendered_file))
-        base_response += headers + "\r\n" + rendered_file + "\r\n"
+        if rendered_file != b"\r\n":
+            base_response = response_crafters.base_response_crafter(http_version, path_updated, status_code,
+                                                                    sys.getsizeof(rendered_file))
+        else:
+            base_response = response_crafters.base_response_crafter(http_version, path_updated, status_code, 0,
+                                                                    "text/plain")
+            rendered_file = b""
+        base_response += headers + "\r\n"
+        base_response = base_response.encode() + rendered_file
         return base_response
 
     @staticmethod
@@ -122,7 +127,7 @@ class response_crafters:
         base_response = response_crafters.base_response_crafter(http_version, path_updated, status_code,
                                                                 sys.getsizeof(rendered_file))
         base_response += headers + "\r\n"
-        return base_response
+        return base_response.encode()
 
     @staticmethod
     def options_response_crafter(http_version, http_file, headers=configuration.server["default_headers"]):
@@ -136,7 +141,7 @@ class response_crafters:
             if x[1]:
                 allowed_methods.append(x[0])
         base_response += "Allow: " + ", ".join(allowed_methods) + "\r\n" + headers + "\r\n"
-        return base_response
+        return base_response.encode()
 
     @staticmethod
     def post_response_crafter(http_version, http_file, headers=configuration.server["default_headers"], args="test"):
@@ -145,7 +150,8 @@ class response_crafters:
         status_code = "200" if file_exists else "501"
         base_response = response_crafters.base_response_crafter(http_version, path_updated, status_code,
                                                                 sys.getsizeof(rendered_file))
-        base_response += headers + "\r\n" + rendered_file + "\r\n"
+        base_response += headers + "\r\n"
+        base_response = base_response.encode() + rendered_file + b"\r\n"
         return base_response
 
     @staticmethod
@@ -156,13 +162,13 @@ class response_crafters:
         base_response = response_crafters.base_response_crafter(http_version, path_updated, status_code,
                                                                 sys.getsizeof(rendered_file), "message/http")
         base_response += headers + "\r\n" + request
-        return base_response
+        return base_response.encode()
 
 
 class file_renderers:
     @staticmethod
     def default(path_to_file):
-        return open(path_to_file, "r").read()
+        return open(path_to_file, "rb").read()
 
     @staticmethod
     def execute_file(command, path_to_file, args):
@@ -174,6 +180,7 @@ class file_renderers:
     def choose_renderer(file_to_render, args=""):
         extension = re.findall(r".+\.(\w+)", file_to_render)[0]
         if extension in configuration.executors.keys():
-            return "\r\n" + file_renderers.execute_file(configuration.executors[extension], file_to_render, args)
+            return b"\r\n" + \
+                   file_renderers.execute_file(configuration.executors[extension], file_to_render, args).encode()
         else:
-            return "\r\n" + file_renderers.default(file_to_render)
+            return b"\r\n" + file_renderers.default(file_to_render)
