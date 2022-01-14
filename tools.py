@@ -64,7 +64,7 @@ class request_parsers:
         elif version == "HTTP/1.1" and len(re.findall(r"Host:\s.+", request)) == 0:
             return False, response_crafters.base_response_crafter(
                 "HTTP/1.1", file_parsers.parse_file_path("404.html")[0], "400", 0) + "\r\n"
-        elif len(re.findall(r"/.*$", file)) == 0:
+        elif len(re.findall(r".+\.\w+$", file)) == 0 and file[-1] != "/":
             return False, response_crafters.base_response_crafter(
                 "HTTP/1.1", file_parsers.parse_file_path("404.html")[0], "200", 0, "application/octet-stream") + "\r\n"
         else:
