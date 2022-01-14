@@ -8,6 +8,10 @@ import magic
 from urllib import parse
 
 
+class InvalidRequest(Exception):
+    pass
+
+
 class configuration:
 
     @staticmethod
@@ -51,7 +55,7 @@ class request_parsers:
     def validate_request(request):
         try:
             method, file, version = request_parsers.parse_basic_request_information(request)
-        except IndexError:
+        except InvalidRequest:
             return False, response_crafters.base_response_crafter(
                 "HTTP/1.1", file_parsers.parse_file_path("404.html")[0], "400", 0) + "\r\n"
         if not (version in configuration.server["supported_versions"].split(",")):
@@ -60,20 +64,26 @@ class request_parsers:
         elif version == "HTTP/1.1" and len(re.findall(r"Host:\s.+", request)) == 0:
             return False, response_crafters.base_response_crafter(
                 "HTTP/1.1", file_parsers.parse_file_path("404.html")[0], "400", 0) + "\r\n"
+        elif len(re.findall(r"/.*$", file)) == 0:
+            return False, response_crafters.base_response_crafter(
+                "HTTP/1.1", file_parsers.parse_file_path("404.html")[0], "200", 0, "application/octet-stream") + "\r\n"
         else:
             return True, None
 
     @staticmethod
     def parse_basic_request_information(data):
-        first_line = data.split("\n")[0]
-        http_method = first_line.split(" ")[0]
-        http_file = urllib.parse.unquote(first_line.split(" ")[1])
-        http_version = first_line.split(" ")[2]
-        if http_file == "/":
-            http_file = configuration.server["default_file"]
-        else:
-            http_file = re.findall(r"(http://\d+\.\d+\.\d+\.\d+:\d+)?/(.+)", http_file)[0][1]
-        return http_method, http_file, http_version
+        try:
+            first_line = data.split("\n")[0]
+            http_method = first_line.split(" ")[0]
+            http_file = urllib.parse.unquote(first_line.split(" ")[1])
+            http_version = first_line.split(" ")[2]
+            if http_file == "/":
+                http_file = configuration.server["default_file"]
+            else:
+                http_file = re.findall(r"(http://\d+\.\d+\.\d+\.\d+:\d+)?/(.+)", http_file)[0][1]
+            return http_method, http_file, http_version
+        except IndexError:
+            raise InvalidRequest
 
 
 class file_parsers:
