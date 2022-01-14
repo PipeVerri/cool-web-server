@@ -18,7 +18,6 @@ while True:
     clientSocket, clientAddress = serverSocket.accept()
     request = clientSocket.recv(int(tools.configuration.server["max_request_length"]))
     decoded_request = request.decode().replace("\r", " ")
-    print(request)
     is_request_valid, error_response = tools.request_parsers.validate_request(decoded_request)
     content = b""
     if is_request_valid:

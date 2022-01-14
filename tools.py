@@ -118,9 +118,9 @@ class response_crafters:
         path_updated, file_exists = file_parsers.parse_file_path(http_file)
         rendered_file = file_renderers.choose_renderer(path_updated)
         status_code = "200" if file_exists else "404"
-        if rendered_file != b"\r\n":
+        if rendered_file != b"":
             base_response = response_crafters.base_response_crafter(http_version, path_updated, status_code,
-                                                                    sys.getsizeof(rendered_file))
+                                                                    os.path.getsize(path_updated))
         else:
             base_response = response_crafters.base_response_crafter(http_version, path_updated, status_code, 0,
                                                                     "text/plain")
@@ -135,7 +135,7 @@ class response_crafters:
         rendered_file = file_renderers.choose_renderer(path_updated)
         status_code = "200" if file_exists else "404"
         base_response = response_crafters.base_response_crafter(http_version, path_updated, status_code,
-                                                                sys.getsizeof(rendered_file))
+                                                                os.path.getsize(path_updated))
         base_response += headers + "\r\n"
         return base_response.encode()
 
@@ -145,7 +145,7 @@ class response_crafters:
         rendered_file = file_renderers.choose_renderer(path_updated)
         status_code = "200" if file_exists else "404"
         base_response = response_crafters.base_response_crafter(http_version, path_updated, status_code,
-                                                                sys.getsizeof(rendered_file))
+                                                                os.path.getsize(path_updated))
         allowed_methods = []
         for x in configuration.methods[http_file].items():
             if x[1]:
@@ -159,7 +159,7 @@ class response_crafters:
         rendered_file = file_renderers.choose_renderer(path_updated, args)
         status_code = "200" if file_exists else "501"
         base_response = response_crafters.base_response_crafter(http_version, path_updated, status_code,
-                                                                sys.getsizeof(rendered_file))
+                                                                os.path.getsize(path_updated))
         base_response += headers + "\r\n"
         base_response = base_response.encode() + rendered_file + b"\r\n"
         return base_response
@@ -170,7 +170,7 @@ class response_crafters:
         rendered_file = file_renderers.choose_renderer(path_updated)
         status_code = "200"
         base_response = response_crafters.base_response_crafter(http_version, path_updated, status_code,
-                                                                sys.getsizeof(rendered_file), "message/http")
+                                                                os.path.getsize(path_updated), "message/http")
         base_response += headers + "\r\n" + request
         return base_response.encode()
 
@@ -193,4 +193,4 @@ class file_renderers:
             return b"\r\n" + \
                    file_renderers.execute_file(configuration.executors[extension], file_to_render, args).encode()
         else:
-            return b"\r\n" + file_renderers.default(file_to_render)
+            return file_renderers.default(file_to_render)
