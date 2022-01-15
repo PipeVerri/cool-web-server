@@ -2,10 +2,8 @@ import os
 import re
 import urllib.parse
 from datetime import datetime
-import sys
 from collections import defaultdict
 import magic
-from urllib import parse
 
 
 class InvalidRequest(Exception):
@@ -194,3 +192,27 @@ class file_renderers:
                    file_renderers.execute_file(configuration.executors[extension], file_to_render, args).encode()
         else:
             return file_renderers.default(file_to_render)
+
+
+class loggers:
+
+    @staticmethod
+    def add_log(data):
+        logs_file = open(configuration.server["log_file_path"], "a")
+        line_to_append = ""
+        for key, value in data.items():
+            line_to_append += '"' + key + '"' + ":" + '"' + value + '"' + ";"
+        line_to_append += "\n"
+        logs_file.write(line_to_append)
+        logs_file.close()
+
+    @staticmethod
+    def log_request(request, client_socket="", client_address=""):
+        method, file, version = request_parsers.parse_basic_request_information(request)
+        log_data = {"method": method, "file": file, "version": version}
+        for x in request.split("\n")[1:]:
+            if x == " " or x == "":
+                continue
+            header, value = x.split(" ", maxsplit=1)
+            log_data[header.strip(":")] = value[:-1]
+        loggers.add_log(log_data)

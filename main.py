@@ -19,9 +19,9 @@ while True:
     request = clientSocket.recv(int(tools.configuration.server["max_request_length"]))
     decoded_request = request.decode().replace("\r", " ")
     is_request_valid, error_response = tools.request_parsers.validate_request(decoded_request)
-    content = b""
     if is_request_valid:
         method, filename, version = tools.request_parsers.parse_basic_request_information(decoded_request)
+        tools.loggers.log_request(decoded_request)
     else:
         method, version, filename = None, None, None
         content = error_response.encode()
