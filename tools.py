@@ -130,7 +130,7 @@ class response_crafters:
     @staticmethod
     def head_response_crafter(http_version, http_file, headers=configuration.server["default_headers"]):
         path_updated, file_exists = file_parsers.parse_file_path(http_file)
-        rendered_file = file_renderers.choose_renderer(path_updated)
+        file_renderers.choose_renderer(path_updated)
         status_code = "200" if file_exists else "404"
         base_response = response_crafters.base_response_crafter(http_version, path_updated, status_code,
                                                                 os.path.getsize(path_updated))
@@ -140,7 +140,7 @@ class response_crafters:
     @staticmethod
     def options_response_crafter(http_version, http_file, headers=configuration.server["default_headers"]):
         path_updated, file_exists = file_parsers.parse_file_path(http_file)
-        rendered_file = file_renderers.choose_renderer(path_updated)
+        file_renderers.choose_renderer(path_updated)
         status_code = "200" if file_exists else "404"
         base_response = response_crafters.base_response_crafter(http_version, path_updated, status_code,
                                                                 os.path.getsize(path_updated))
@@ -165,7 +165,7 @@ class response_crafters:
     @staticmethod
     def trace_response_crafter(http_version, http_file, request, headers=configuration.server["default_headers"]):
         path_updated, file_exists = file_parsers.parse_file_path(http_file)
-        rendered_file = file_renderers.choose_renderer(path_updated)
+        file_renderers.choose_renderer(path_updated)
         status_code = "200"
         base_response = response_crafters.base_response_crafter(http_version, path_updated, status_code,
                                                                 os.path.getsize(path_updated), "message/http")
@@ -200,19 +200,23 @@ class loggers:
     def add_log(data):
         logs_file = open(configuration.server["log_file_path"], "a")
         line_to_append = ""
-        for key, value in data.items():
-            line_to_append += '"' + key + '"' + ":" + '"' + value + '"' + ";"
-        line_to_append += "\n"
+        for value in data:
+            line_to_append += '"' + value + '"' + ","
+        line_to_append = line_to_append[:-1] + "\n"
         logs_file.write(line_to_append)
         logs_file.close()
 
     @staticmethod
-    def log_request(request, client_socket="", client_address=""):
+    def log_request(request, client_address):
         method, file, version = request_parsers.parse_basic_request_information(request)
-        log_data = {"method": method, "file": file, "version": version}
-        for x in request.split("\n")[1:]:
-            if x == " " or x == "":
-                continue
-            header, value = x.split(" ", maxsplit=1)
-            log_data[header.strip(":")] = value[:-1]
+        log_data = [method, file, version, datetime.utcnow().isoformat(), client_address[0]]
+        for x in configuration.server["headers_to_log"].split(","):
+            log_data.append(loggers.header_finder(x, request))
         loggers.add_log(log_data)
+
+    @staticmethod
+    def header_finder(header_name, request):
+        try:
+            return re.findall(rf"{header_name}: (.+)", request)[0]
+        except IndexError:
+            return ""
